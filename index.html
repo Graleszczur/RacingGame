@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>potężna gra wyścigowa</title>
+    <style>
+        body { margin: 0; padding: 0; font-size: 0; }
+        canvas { width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+<script src="js/three.min.js"></script>
+<script>
+    var up=false;
+    var down=false;
+    var left=false;
+    var right=false;
+    var WIDTH = window.innerWidth;
+    var HEIGHT = window.innerHeight;
+
+    document.addEventListener('keydown',onDocumentKeyDown,false);
+    document.addEventListener('keyup',onDocumentKeyUp,false);
+
+    function onDocumentKeyDown(event){
+        event = event || window.event;
+        var keycode = event.keyCode;
+        switch(keycode){
+            case 37 : left=true;break;
+            case 38 : up=true;break;
+            case 39 : right=true;break;
+            case 40 : down=true;break;
+        }
+    }
+    function onDocumentKeyUp(event){
+        event = event || window.event;
+        var keycode = event.keyCode;
+        switch(keycode){
+            case 37 : left=false;break;
+            case 38 : up=false;break;
+            case 39 : right=false;break;
+            case 40 : down=false;break;
+        }
+    }
+
+    var renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(WIDTH, HEIGHT);
+    renderer.setClearColor(0xDDDDDD, 1);
+    document.body.appendChild(renderer.domElement);
+    var scene = new THREE.Scene();
+    var Texture = new THREE.TextureLoader().load( "img\\droga.png" );
+    Texture.wrapS = THREE.RepeatWrapping;
+    Texture.wrapT = THREE.RepeatWrapping;
+    Texture.repeat.set( 1, 5 );
+
+    var Material = new THREE.MeshBasicMaterial( { map: Texture, side: THREE.DoubleSide } );
+    var Geometry = new THREE.PlaneGeometry(9, 150, 1, 11);
+    var plane = new THREE.Mesh(Geometry, Material);
+    plane.rotation.set(90, 0, 0);
+    plane.material.map.offset.y = 1.5;
+    scene.add(plane);
+    var clock = new THREE.Clock;
+    dt=clock.getDelta();
+
+
+    var camera = new THREE.PerspectiveCamera(80, WIDTH/HEIGHT, 0.1, 10000);
+    camera.position.z = 5;
+    scene.add(camera);
+    var light = new THREE.PointLight(0xFFFFFF);
+    light.position.set(-10, 15, 50);
+    scene.add(light);
+
+
+
+    var texture = THREE.ImageUtils.loadTexture( 'img\\tlo.png' );
+    var backgroundMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(2, 2, 0),
+        new THREE.MeshBasicMaterial({
+            map: texture
+        }));
+
+    backgroundMesh .material.depthTest = false;
+    backgroundMesh .material.depthWrite = false;
+
+
+    var backgroundScene = new THREE.Scene();
+    var backgroundCamera = new THREE.Camera();
+    backgroundScene .add(backgroundCamera );
+    backgroundScene .add(backgroundMesh );
+    var boxGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.7);
+    var phongMaterial = new THREE.MeshPhongMaterial({color: 0xFF0000});
+    var cube = new THREE.Mesh(boxGeometry, phongMaterial);
+    cube.position.x = 0;
+    cube.position.z=1;
+    cube.rotation.set(1.0, 0.0, 0);
+    scene.add(cube);
+
+    var geometry = new THREE.RingGeometry( 0.5, 1, 30 );
+    var material = new THREE.MeshBasicMaterial( { color: 0xffff00, side: THREE.DoubleSide } );
+    var ring = new THREE.Mesh( geometry, material );
+    ring.position.x = 0;
+    ring.position.y = cube.position.y + 33;
+    ring.position.z = cube.position.z - 40 * 1.60;
+    ring.rotation.set(0, 0, 0);
+    scene.add(ring);
+
+    function reset_ring(ring){
+        if(ring.position.y < -1.5) {
+            x_positions = [-2.5, 0, 2.5];
+            ring.position.x = x_positions[Math.floor(Math.random() * 3)];
+            ring.position.y = cube.position.y + 33;
+            ring.position.z = cube.position.z - 40 * 1.60;
+        }
+    }
+
+
+    function collision_detector(player, object){
+        if(Math.abs(player.position.z - object.position.z) < 0.1){
+            if(Math.abs(player.position.x - object.position.x) < 1){
+
+                return true;
+            }
+            return false;
+        }
+        return false;
+    }
+
+
+    var speed = 0;
+    var velocity = 0.001;
+    var friction = 0.99;
+    var gameflag = true;
+
+    function render() {
+        if(gameflag == true){
+            plane.material.map.offset.y -= speed;
+            ring.position.z += speed *10 ;
+            ring.position.y -= speed *5;
+            requestAnimationFrame(render);
+
+        }
+        speed *= friction;
+
+
+        if(right){
+            if(cube.position.x < 3.5){
+                cube.position.x += 0.1;
+
+            }
+            if(camera.position.x < 3.5){
+                camera.position.x += 0.1;
+
+            }
+        }
+
+        if(left){
+            if(cube.position.x > -3.5){
+                cube.position.x -= 0.1;
+
+            }
+            if(camera.position.x > -3.5){
+                camera.position.x -= 0.1;
+
+            }
+        }
+        if(up){
+            if(speed < 0.04){
+                speed += velocity
+
+            }
+
+        }
+        if(down){
+            friction = 0.95
+            if(speed < 0.001 && !up){
+                speed = 0;
+            }
+        }
+        if(!down){
+            if(speed < 0.001 && !up){
+                speed = 0;
+            }
+            friction = 0.99
+        }
+
+        renderer.autoClear = false;
+        renderer.clear();
+        renderer.render(backgroundScene , backgroundCamera );
+        renderer.render(scene, camera);
+        if(collision_detector(ring, cube)){
+            gameflag = false;
+        }
+        reset_ring(ring)
+    }
+    render();
+</script>
+</body>
+</html>
